@@ -1,9 +1,11 @@
 <template>
   <!--该页面仅仅是做分发使用。仅做登录使用-->
   <div id="consumer">
-    <!--<router-view style="min-height: 100vh"></router-view>-->
-    <router-view style="min-height: 100vh;"></router-view>
-    <tail>海天酱油平台</tail>
+    <dht-cat></dht-cat>
+    <transition name="page-transition">
+      <router-view class="consumer-page"></router-view>
+    </transition>
+    <tail>海天酱油用户分发平台</tail>
   </div>
 </template>
 <script>
@@ -11,7 +13,7 @@ export default {
   name: "App",
   data() {
     return {
-      blog: "/dht_blog/index",
+      blog: "/blog/index",
       platform: "/dht_platform/home",
       prefix: ""
     };
@@ -34,7 +36,16 @@ export default {
 <style lang="scss" scoped>
 @import "@/assets/css/public.scss";
 #consumer {
-  font: 14px alpht sans-serif;
+  font: 14px "Microsoft YaHei UI" sans-serif;
   color: $font_main;
+  width: 100%;
+  height: 100%;
+  overflow-x: hidden;
+  .consumer-page {
+    min-height: 100vh;
+    width: 100%;
+    background-image: url("./assets/images/back.jpg");
+    background-size: 100% 100%;
+  }
 }
 </style>

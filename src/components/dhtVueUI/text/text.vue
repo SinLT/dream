@@ -29,7 +29,7 @@ export default {
   filters: {
     //字数空值显示
     textNums(val, num) {
-      if (num > 0) {
+      if (val && num > 0) {
         return num > 0 ? val.substring(0, num) + " ..." : val;
       } else {
         return val;
@@ -48,15 +48,3 @@ export default {
   }
 };
 </script>
-
-<style lang="scss">
-.dhtText {
-  overflow: hidden;
-  display: inline-block;
-}
-//单行显示处理
-.dhtTextNowrap {
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-</style>

@@ -3,6 +3,7 @@
     <el-form class="loginFrom" :model="logindata" :rules="rules" ref="ruleForm">
       <el-form-item class="login-item">
         <h1 class="login-title">海天酱油登录中心</h1>
+        <a class="blog" href="/blog">直接进博客</a>
       </el-form-item>
       <el-form-item prop="userName">
         <el-input
@@ -10,6 +11,7 @@
           prefix-icon="el-icon-user"
           placeholder="登录名"
           v-model="logindata.userName"
+          @keyup.enter.native="loginButton"
         ></el-input>
       </el-form-item>
       <el-form-item prop="password">
@@ -17,23 +19,34 @@
           class="login-inputorbuttom"
           prefix-icon="el-icon-lock"
           placeholder="密码"
+          type="password"
           v-model="logindata.password"
+          @keyup.enter.native="loginButton"
         ></el-input>
       </el-form-item>
-      <!--<el-form-item prop="verificationCode">
-        <el-input
-          class="login-inputorbuttom"
-          v-model="logindata.verificationCode"
-        ></el-input>
-      </el-form-item>-->
       <el-form-item class="login-item">
         <el-button
           class="login-inputorbuttom login-bottom"
           type="primary"
+          :loading="logining"
           v-popover:popover
-          @click="visible = !visible"
+          @click="loginButton"
           >登 录</el-button
         >
+        <div class="joint-logon">
+          <span class="login-tips">联合登录</span>
+          <template v-for="(item, index) in jointLogon">
+            <span :key="index" class="logon-icon">
+              <img :src="item.icon" :alt="item.name" />
+            </span>
+          </template>
+        </div>
+        <div class="memo">
+          <span style="cursor: pointer;">忘记密码</span>
+          <span style="cursor: pointer;" @click="jumpPage('/create-user')"
+            >注册账号</span
+          >
+        </div>
       </el-form-item>
     </el-form>
     <!--验证码弹窗-->
@@ -72,25 +85,45 @@
 </template>
 
 <script>
+const store = require("store");
+import { userLoginPassword } from "@/common/crypto/crypto";
 export default {
   name: "login",
   data() {
     return {
+      logining: false, // 登录加载提示
       tips: "拖动左边滑块完成上方拼图",
       logindata: {
         userName: "",
         password: "",
         verificationCode: ""
       },
-      rules: {},
-      visible: false,
+      rules: {
+        userName: [{ required: true, message: "请填写密码" }],
+        password: [{ required: true, message: "请填写密码" }]
+      },
+      visible: false, //弹窗开启关闭
       //滑块x轴数据
       slider: {
         mx: 0,
         bx: 0
       },
       //拼图是否正确
-      puzzle: false
+      puzzle: false,
+      jointLogon: [
+        {
+          url: "",
+          event: "",
+          icon: require("../../assets/img/icon/qq.png"),
+          name: "qq登录"
+        },
+        {
+          url: "",
+          event: "",
+          icon: require("../../assets/img/icon/wx.png"),
+          name: "微信登录"
+        }
+      ]
     };
   },
   watch: {
@@ -101,11 +134,25 @@ export default {
       }
     }
   },
-  beforeCreate() {},
+  beforeCreate() {
+    // 已登录用户进入用户中心
+    const user_info = store.get("user_info");
+    if (user_info) this.$router.push({ path: "/user_center" });
+  },
   created() {},
   beforeMount() {},
   mounted() {},
   methods: {
+    // 登录按钮
+    loginButton() {
+      this.$refs["ruleForm"].validate(valid => {
+        if (valid) {
+          this.visible = true;
+          this.puzzle = false;
+          this.tips = "拖动左边滑块完成上方拼图";
+        }
+      });
+    },
     //拼图验证码初始化
     canvasInit() {
       //生成指定区间的随机数
@@ -113,8 +160,8 @@ export default {
         return Math.floor(Math.random() * (max - min + 1) + min);
       };
       //x: 254, y: 109
-      let mx = random(127, 244),
-        bx = random(10, 128),
+      let mx = random(127, 234),
+        bx = random(10, 97),
         y = random(10, 99);
 
       this.slider = { mx, bx };
@@ -123,7 +170,7 @@ export default {
     },
     //鼠标按下
     drag(e) {
-      console.log("鼠标按下", e);
+      //console.log("鼠标按下", e);
       let dom = e.target; //dom元素
       let slider = document.querySelector("#sliderBlock"); //滑块dom
       const downCoordinate = { x: e.x, y: e.y };
@@ -141,22 +188,26 @@ export default {
         slider.style.left = x + "px";
       };
 
-      const up = () => {
+      const up = e => {
+        console.log(e.x - downCoordinate.x, checkx);
         document.removeEventListener("mousemove", move);
         document.removeEventListener("mouseup", up);
         dom.style.left = "";
-
-        console.log(x, checkx);
+        // 实际滑动会偏小，进行偏移
         let max = checkx - 5;
         let min = checkx - 10;
+        // 采用点击距离和最终离开距离计算滑动距离
+        let movex = e.x - downCoordinate.x;
+        console.log(max, movex, min);
         //允许正负误差1
-        if ((max >= x && x >= min) || x === checkx) {
+        if ((max >= movex && movex >= min) || movex === checkx) {
           console.log("滑动解锁成功");
           this.puzzle = true;
           this.tips = "验证成功";
           setTimeout(() => {
             this.visible = false;
-          }, 500);
+          }, 300);
+          this.login(); // 登录函数
         } else {
           console.log("拼图位置不正确");
           this.tips = "验证失败，请重试";
@@ -223,6 +274,36 @@ export default {
       ctx.stroke();
       ctx[type]();
       ctx.globalCompositeOperation = "xor";
+    },
+    // 跳转页面
+    jumpPage(url) {
+      this.$router.push({ path: url });
+    },
+    // 登录
+    login() {
+      let data = {
+        account: this.logindata.userName,
+        password: userLoginPassword(this.logindata.password)
+      };
+      this.logining = true;
+      this.axios
+        .ajax({
+          url: this.$api.consumer().user.login,
+          data: data,
+          method: "post"
+        })
+        .then(e => {
+          this.logining = false;
+          // 存储用户数据到缓存
+          store.clearAll();
+          store.set("user_info", e.data);
+          this.$router.push({ path: "/user_center" });
+          console.log(e.data);
+        })
+        .catch(e => {
+          this.logining = false;
+          console.log(e);
+        });
     }
   }
 };
@@ -242,16 +323,53 @@ export default {
   align-items: center;
   width: 100%;
   height: 100%;
-  background-image: url("../assets/images/back.jpg");
-  background-size: 100% 100%;
   .loginFrom {
     width: 300px;
     margin-top: -10vw;
     margin-right: 10vw;
+    /deep/.el-form-item__error {
+      padding-left: 10px;
+    }
     .login-item {
       display: flex;
       justify-content: center;
       align-items: center;
+      .memo,
+      .joint-logon {
+        color: #f9f9f9;
+        font-size: 12px;
+        display: flex;
+        justify-content: space-between;
+        padding: 0 10px;
+        height: 20px;
+      }
+      .joint-logon {
+        margin-top: 3px;
+        justify-content: flex-start;
+        align-items: center;
+        height: 25px;
+        .login-tips {
+          margin-right: 7px;
+        }
+        .logon-icon {
+          width: 25px;
+          height: 25px;
+          margin-right: 4px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 2px;
+          background: rgba(255, 255, 255, 0.8);
+          cursor: pointer;
+          &:hover {
+            background: rgba(28, 136, 188, 0.5);
+          }
+          > img {
+            width: 85%;
+            height: 85%;
+          }
+        }
+      }
     }
     .login-title {
       color: #ffffff;
@@ -291,6 +409,16 @@ export default {
         font-size: 16px;
       }
     }
+  }
+}
+.blog {
+  font-size: 14px;
+  width: 100%;
+  text-align: center;
+  display: inline-block;
+  color: #ffffff;
+  &:hover {
+    color: #ff4758;
   }
 }
 /*该样式最终是以弹窗插入*/
